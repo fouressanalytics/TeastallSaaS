@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teastall
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: teastall
+    volumes:
+      - teastall_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://teastall:${DB_PASSWORD}@db:5432/teastall
+      SECRET_KEY: ${SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      FROM_EMAIL: ${FROM_EMAIL}
+    volumes:
+      - teastall_uploads:/app/uploads
+    depends_on:
+      - db
+    networks:
+      - internal
+      - traefik   # <-- rename to match whatever external network your other odoo-* / veekay / soroor containers join
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.teastall.rule=Host(`teastall.yourdomain.com`)"   # <-- set your real subdomain
+      - "traefik.http.routers.teastall.entrypoints=websecure"
+      - "traefik.http.routers.teastall.tls.certresolver=le"                    # <-- match your existing certresolver name
+      - "traefik.http.services.teastall.loadbalancer.server.port=8000"
+
+networks:
+  internal:
+  traefik:
+    external: true   # <-- set to your existing Traefik network name
+
+volumes:
+  teastall_db_data:
+  teastall_uploads:

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tea Stall Order Calculator</title>
+<style>
+  :root{
+    --bg:#F6EFE3; --surface:#FFFFFF; --surface-alt:#EFE4CF;
+    --ink:#2A1B10; --ink-soft:#6B5842;
+    --brass:#B8842B; --brass-deep:#8C641E;
+    --steel:#4B6670; --line:#E3D5B8;
+    --danger:#A23B2E; --danger-bg:#F3DCD6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent;}
+  .app{max-width:430px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden;}
+
+  /* Auth screen */
+  .auth-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px;}
+  .auth-title{font-family:Georgia,serif;font-size:26px;font-weight:700;margin-bottom:4px;}
+  .auth-sub{font-size:13.5px;color:var(--ink-soft);margin-bottom:24px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+  .field input,.field select{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:11px;font-size:15px;color:var(--ink);}
+  .primary-btn{background:var(--brass);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;width:100%;}
+  .primary-btn:active{background:var(--brass-deep);}
+  .primary-btn:disabled{opacity:0.6;}
+  .link-btn{background:none;border:none;color:var(--steel);font-size:13.5px;font-weight:600;text-decoration:underline;cursor:pointer;padding:10px 0 0;width:100%;}
+  .auth-error{color:var(--danger);font-size:13px;margin-bottom:10px;min-height:16px;}
+
+  /* Header/tabs */
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .shop-name{font-family:Georgia,serif;font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .icon-btn{border:none;background:var(--surface-alt);color:var(--ink);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0;}
+  .icon-btn:active{background:var(--line);}
+  .tabs{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid var(--line);}
+  .tab{border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;}
+  .tab.active{background:var(--ink);border-color:var(--ink);color:var(--bg);}
+
+  /* Grid */
+  .grid-wrap{flex:1;overflow-y:auto;padding:14px 12px 90px;}
+  .empty-state{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:14px;line-height:1.6;}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden;display:flex;flex-direction:column;position:relative;}
+  .card.has-count{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass);}
+  .card-img{width:100%;aspect-ratio:1.1/1;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;position:relative;overflow:hidden;}
+  .card-img img{width:100%;height:100%;object-fit:cover;}
+  .count-badge{position:absolute;top:4px;right:4px;background:var(--brass);color:#fff;font-size:10.5px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+  .card-body{padding:5px 5px 6px;}
+  .card-name{font-size:11px;font-weight:600;line-height:1.2;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-price{font-size:10px;color:var(--ink-soft);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stepper{display:flex;align-items:center;gap:3px;}
+  .step-btn{width:21px;height:21px;border-radius:6px;border:1px solid var(--line);background:var(--surface-alt);color:var(--ink);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;}
+  .step-btn:active{background:var(--line);}
+  .count-input{flex:1;min-width:0;width:100%;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:11.5px;font-weight:700;padding:3px 1px;color:var(--ink);}
+
+  .bottom-bar{position:absolute;left:0;right:0;bottom:0;max-width:430px;margin:0 auto;background:var(--ink);color:var(--bg);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-radius:16px 16px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,0.15);transform:translateY(110%);transition:transform 0.25s ease;}
+  .bottom-bar.show{transform:translateY(0);}
+  .bottom-bar .info{font-size:13px;color:var(--surface-alt);}
+  .bottom-bar .amount{font-size:19px;font-weight:700;color:#fff;}
+  .bottom-bar .primary-btn{width:auto;}
+
+  .screen{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;}
+  .screen.show{transform:translateX(0);}
+  .screen-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .screen-header h2{font-family:Georgia,serif;font-size:18px;margin:0;flex:1;}
+  .screen-body{flex:1;overflow-y:auto;padding:16px;}
+
+  .order-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px;}
+  .order-row .nm{font-weight:600;}
+  .order-row .qty{color:var(--ink-soft);font-size:13px;margin-left:6px;}
+  .order-row .amt{font-weight:700;}
+  .total-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;margin-top:6px;}
+  .total-row .lbl{font-size:14px;color:var(--ink-soft);font-weight:600;}
+  .total-row .val{font-size:28px;font-weight:700;font-family:Georgia,serif;}
+  .qr-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;margin-top:6px;}
+  .qr-box img{width:100%;max-width:230px;border-radius:8px;}
+  .qr-placeholder{padding:40px 16px;color:var(--ink-soft);font-size:13px;line-height:1.6;}
+  .qr-caption{margin-top:10px;font-size:13px;color:var(--ink-soft);}
+  .screen-footer{padding:14px 16px 18px;border-top:1px solid var(--line);flex-shrink:0;}
+
+  .row2{display:flex;gap:10px;}
+  .row2 > div{flex:1;}
+  .file-drop{border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;font-size:13px;color:var(--ink-soft);cursor:pointer;background:var(--surface);}
+  .file-drop img{max-height:70px;border-radius:8px;margin-bottom:6px;}
+  .sec-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);margin:22px 0 10px;}
+  .sec-title:first-child{margin-top:0;}
+  .item-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:8px;}
+  .item-row .thumb{width:38px;height:38px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:19px;overflow:hidden;flex-shrink:0;}
+  .item-row .thumb img{width:100%;height:100%;object-fit:cover;}
+  .item-row .meta{flex:1;min-width:0;}
+  .item-row .meta .n{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item-row .meta .p{font-size:12px;color:var(--ink-soft);}
+  .item-row .del{border:none;background:var(--danger-bg);color:var(--danger);width:30px;height:30px;border-radius:8px;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .ghost-btn{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px;}
+  .ghost-btn:active{background:var(--surface-alt);}
+  .hint{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:2px;}
+  input[type=file]{display:none;}
+  .add-item-panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:18px;}
+  .spinner-note{text-align:center;padding:40px;color:var(--ink-soft);font-size:14px;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- AUTH SCREEN -->
+  <div class="auth-wrap" id="authScreen">
+    <div class="auth-title">Tea Stall</div>
+    <div class="auth-sub" id="authSub">Log in to manage your menu and take orders.</div>
+    <div class="auth-error" id="authError"></div>
+
+    <div id="loginForm">
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
+      <button class="primary-btn" onclick="doLogin()" id="loginBtn">Log in</button>
+      <button class="link-btn" onclick="showSignup()">New shop? Create an account</button>
+      <button class="link-btn" onclick="showForgot()">Forgot password?</button>
+    </div>
+
+    <div id="signupForm" style="display:none;">
+      <div class="field"><label>Shop name</label><input type="text" id="signupShopName" placeholder="e.g. Café Latha"></div>
+      <div class="field"><label>Email</label><input type="email" id="signupEmail" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="signupPassword" autocomplete="new-password"></div>
+      <button class="primary-btn" onclick="doSignup()" id="signupBtn">Create account</button>
+      <button class="link-btn" onclick="showLogin()">Already have an account? Log in</button>
+    </div>
+
+    <div id="forgotForm" style="display:none;">
+      <div class="field"><label>Email</label><input type="email" id="forgotEmail" autocomplete="username"></div>
+      <button class="primary-btn" onclick="doForgotPassword()" id="forgotBtn">Send reset link</button>
+      <button class="link-btn" onclick="showLogin()">Back to log in</button>
+    </div>
+
+    <div id="resetForm" style="display:none;">
+      <div class="field"><label>New password</label><input type="password" id="resetPassword" autocomplete="new-password"></div>
+      <button class="primary-btn" onclick="doResetPassword()" id="resetBtn">Set new password</button>
+      <button class="link-btn" onclick="showLogin()">Back to log in</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP (hidden until logged in) -->
+  <div id="mainApp" style="display:none;flex-direction:column;height:100%;">
+    <header>
+      <div class="shop-name" id="shopNameDisplay">Tea Stall</div>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">&#9881;</button>
+    </header>
+    <div class="tabs" id="tabs"></div>
+    <div class="grid-wrap"><div id="gridArea"></div></div>
+    <div class="bottom-bar" id="bottomBar">
+      <div><div class="info" id="bbCount">0 items</div><div class="amount" id="bbTotal">&#8377;0</div></div>
+      <button class="primary-btn" onclick="goToOrder()">Review order &rarr;</button>
+    </div>
+
+    <div class="screen" id="orderScreen">
+      <div class="screen-header"><button class="icon-btn" onclick="closeScreen('orderScreen')">&larr;</button><h2>Order summary</h2></div>
+      <div class="screen-body">
+        <div id="orderList"></div>
+        <div class="total-row"><div class="lbl">Total to pay</div><div class="val" id="orderTotal">&#8377;0</div></div>
+        <div class="qr-box" id="qrBox"></div>
+      </div>
+      <div class="screen-footer"><button class="primary-btn" onclick="newOrder()">Start new order</button></div>
+    </div>
+
+    <div class="screen" id="settingsScreen">
+      <div class="screen-header"><button class="icon-btn" onclick="closeScreen('settingsScreen')">&larr;</button><h2>Settings</h2></div>
+      <div class="screen-body">
+        <div class="sec-title">Shop</div>
+        <div class="field"><label>Shop name</label><input type="text" id="shopNameInput"></div>
+
+        <div class="sec-title">Payment QR code</div>
+        <div class="field">
+          <div class="file-drop" id="qrDrop" onclick="document.getElementById('qrFile').click()">
+            <div id="qrPreviewWrap">Tap to upload a photo of your UPI / payment QR code</div>
+          </div>
+          <input type="file" id="qrFile" accept="image/*">
+          <div class="hint">Shown as-is on the order screen. Just a picture — nothing is generated or sent anywhere.</div>
+        </div>
+
+        <div class="sec-title">Menu items</div>
+        <div id="itemsList"></div>
+        <button class="ghost-btn" onclick="toggleAddPanel()">+ Add menu item</button>
+
+        <div class="add-item-panel" id="addItemPanel" style="display:none;">
+          <div class="field">
+            <div class="file-drop" id="itemImgDrop" onclick="document.getElementById('itemImgFile').click()">
+              <div id="itemImgPreviewWrap">Tap to add a photo (optional)</div>
+            </div>
+            <input type="file" id="itemImgFile" accept="image/*">
+          </div>
+          <div class="field"><label>Item name</label><input type="text" id="newItemName" placeholder="e.g. Masala Tea"></div>
+          <div class="row2">
+            <div class="field"><label>Category</label>
+              <select id="newItemCategory">
+                <option value="tea_coffee">Tea/Coffee</option>
+                <option value="snacks">Snacks</option>
+                <option value="mixing">Mixing</option>
+                <option value="rice">Rice</option>
+              </select>
+            </div>
+            <div class="field"><label>Price (&#8377;)</label><input type="number" id="newItemPrice" placeholder="0" min="0" step="1"></div>
+          </div>
+          <button class="primary-btn" onclick="addItem()">Save item</button>
+        </div>
+
+        <div class="sec-title">Account</div>
+        <button class="ghost-btn" style="color:var(--danger);border-color:var(--danger-bg);" onclick="logout()">Log out</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---------------- Config ---------------- */
+var API = ""; // same-origin; change if API is hosted on a different domain
+var TOKEN_KEY = "teastall_token";
+
+var CATEGORY_EMOJI = { tea_coffee:"&#127861;", snacks:"&#127850;", mixing:"&#127829;", rice:"&#127862;" };
+var CATEGORY_LABEL = { tea_coffee:"Tea/Coffee", snacks:"Snacks", mixing:"Mixing", rice:"Rice" };
+
+var state = { shopName:"Tea Stall", qrImageUrl:null, items:[], counts:{}, activeTab:"all", pendingItemImageFile:null };
+
+function fmtMoney(n){ return "&#8377;" + (Math.round(n*100)/100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+function escapeHtml(s){ var d=document.createElement("div"); d.innerText=s; return d.innerHTML; }
+function getToken(){ return localStorage.getItem(TOKEN_KEY); }
+function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+async function api(path, options){
+  options = options || {};
+  options.headers = options.headers || {};
+  var token = getToken();
+  if(token) options.headers["Authorization"] = "Bearer " + token;
+  var res = await fetch(API + path, options);
+  if(res.status === 401){ logout(); throw new Error("Session expired"); }
+  if(!res.ok){
+    var msg = "Request failed";
+    try{ var body = await res.json(); msg = body.detail || msg; }catch(e){}
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/* ---------------- Auth screens ---------------- */
+function showSignup(){
+  hideAllAuthForms();
+  document.getElementById("signupForm").style.display = "block";
+  document.getElementById("authSub").innerText = "Set up your shop in under a minute.";
+}
+function showLogin(){
+  hideAllAuthForms();
+  document.getElementById("loginForm").style.display = "block";
+  document.getElementById("authSub").innerText = "Log in to manage your menu and take orders.";
+}
+function showForgot(){
+  hideAllAuthForms();
+  document.getElementById("forgotForm").style.display = "block";
+  document.getElementById("authSub").innerText = "Enter your email and we'll send a reset link.";
+}
+function showReset(){
+  hideAllAuthForms();
+  document.getElementById("resetForm").style.display = "block";
+  document.getElementById("authSub").innerText = "Choose a new password for your account.";
+}
+function hideAllAuthForms(){
+  ["loginForm","signupForm","forgotForm","resetForm"].forEach(function(id){
+    document.getElementById(id).style.display = "none";
+  });
+  document.getElementById("authError").innerText = "";
+}
+
+async function doLogin(){
+  var email = document.getElementById("loginEmail").value.trim();
+  var password = document.getElementById("loginPassword").value;
+  var errEl = document.getElementById("authError");
+  errEl.innerText = "";
+  if(!email || !password){ errEl.innerText = "Enter your email and password."; return; }
+  try{
+    var res = await fetch(API + "/api/auth/login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({email:email, password:password})
+    });
+    if(!res.ok){ var b = await res.json().catch(function(){return {};}); throw new Error(b.detail || "Login failed."); }
+    var data = await res.json();
+    setToken(data.access_token);
+    boot();
+  }catch(e){ errEl.innerText = e.message; }
+}
+
+async function doSignup(){
+  var shopName = document.getElementById("signupShopName").value.trim() || "Tea Stall";
+  var email = document.getElementById("signupEmail").value.trim();
+  var password = document.getElementById("signupPassword").value;
+  var errEl = document.getElementById("authError");
+  errEl.innerText = "";
+  if(!email || !password){ errEl.innerText = "Enter an email and password."; return; }
+  if(password.length < 6){ errEl.innerText = "Password should be at least 6 characters."; return; }
+  try{
+    var res = await fetch(API + "/api/auth/signup", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({email:email, password:password, shop_name:shopName})
+    });
+    if(!res.ok){ var b = await res.json().catch(function(){return {};}); throw new Error(b.detail || "Could not create account."); }
+    var data = await res.json();
+    setToken(data.access_token);
+    boot();
+  }catch(e){ errEl.innerText = e.message; }
+}
+
+var forgotSent = false;
+async function doForgotPassword(){
+  var email = document.getElementById("forgotEmail").value.trim();
+  var errEl = document.getElementById("authError");
+  errEl.innerText = "";
+  if(!email){ errEl.innerText = "Enter your email."; return; }
+  var btn = document.getElementById("forgotBtn");
+  btn.disabled = true;
+  try{
+    var res = await fetch(API + "/api/auth/forgot-password", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({email:email})
+    });
+    var data = await res.json();
+    // Same message whether or not the account exists — that's intentional.
+    document.getElementById("authSub").innerText = data.message || "If an account exists for that email, a reset link has been sent.";
+    forgotSent = true;
+  }catch(e){
+    errEl.innerText = "Something went wrong. Try again in a moment.";
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+var pendingResetToken = null;
+async function doResetPassword(){
+  var password = document.getElementById("resetPassword").value;
+  var errEl = document.getElementById("authError");
+  errEl.innerText = "";
+  if(!pendingResetToken){ errEl.innerText = "This reset link is missing its token."; return; }
+  if(password.length < 6){ errEl.innerText = "Password should be at least 6 characters."; return; }
+  var btn = document.getElementById("resetBtn");
+  btn.disabled = true;
+  try{
+    var res = await fetch(API + "/api/auth/reset-password", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({token: pendingResetToken, new_password: password})
+    });
+    var data = await res.json().catch(function(){return {};});
+    if(!res.ok){ throw new Error(data.detail || "Couldn't reset your password."); }
+    // Clean the token out of the URL so it can't be reused/bookmarked.
+    window.history.replaceState({}, document.title, window.location.pathname);
+    pendingResetToken = null;
+    showLogin();
+    document.getElementById("authSub").innerText = "Password updated — log in with your new password.";
+  }catch(e){
+    errEl.innerText = e.message;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function logout(){
+  clearToken();
+  document.getElementById("mainApp").style.display = "none";
+  document.getElementById("authScreen").style.display = "flex";
+  showLogin();
+}
+
+/* ---------------- Boot / load app data ---------------- */
+async function boot(){
+  // If this page was opened from a password-reset email link, show that
+  // form instead of the normal login screen, regardless of login state.
+  var urlParams = new URLSearchParams(window.location.search);
+  var resetToken = urlParams.get("reset_token");
+  if(resetToken){
+    pendingResetToken = resetToken;
+    document.getElementById("mainApp").style.display = "none";
+    document.getElementById("authScreen").style.display = "flex";
+    showReset();
+    return;
+  }
+
+  var token = getToken();
+  if(!token){ document.getElementById("authScreen").style.display = "flex"; document.getElementById("mainApp").style.display = "none"; return; }
+  try{
+    var me = await api("/api/me");
+    var items = await api("/api/items");
+    state.shopName = me.shop_name;
+    state.qrImageUrl = me.qr_image_url;
+    state.items = items.map(function(it){ return {id:String(it.id), name:it.name, category:it.category, price:it.price, image:it.image_url}; });
+    document.getElementById("authScreen").style.display = "none";
+    document.getElementById("mainApp").style.display = "flex";
+    document.getElementById("shopNameDisplay").innerText = state.shopName;
+    renderTabs();
+    renderGrid();
+  }catch(e){
+    logout();
+  }
+}
+boot();
+
+/* ---------------- Tabs / grid (same UX as before) ---------------- */
+function renderTabs(){
+  var cats = ["all"]; var seen = {};
+  state.items.forEach(function(it){ if(!seen[it.category]){ seen[it.category]=true; cats.push(it.category); } });
+  var html = "";
+  cats.forEach(function(c){
+    var label = c === "all" ? "All" : (CATEGORY_LABEL[c] || c);
+    html += '<button class="tab'+(state.activeTab===c?' active':'')+'" onclick="setTab(\''+c+'\')">'+label+'</button>';
+  });
+  document.getElementById("tabs").innerHTML = html;
+}
+function setTab(c){ state.activeTab = c; renderTabs(); renderGrid(); }
+
+function renderGrid(){
+  var list = state.items.filter(function(it){ return state.activeTab==="all" || it.category===state.activeTab; });
+  var area = document.getElementById("gridArea");
+  if(list.length===0){
+    area.innerHTML = '<div class="empty-state">No items yet.<br>Add your menu from Settings.<br><button class="primary-btn" onclick="openSettings()" style="width:auto;padding:10px 16px;margin-top:10px;">Open settings</button></div>';
+    updateBottomBar(); return;
+  }
+  var html = '<div class="grid">';
+  list.forEach(function(it){
+    var count = state.counts[it.id] || 0;
+    var imgInner = it.image ? '<img src="'+it.image+'">' : (CATEGORY_EMOJI[it.category] || "&#127850;");
+    html += '<div class="card'+(count>0?' has-count':'')+'">'+
+      '<div class="card-img" onclick="incr(\''+it.id+'\')">'+imgInner+(count>0?'<div class="count-badge">'+count+'</div>':'')+'</div>'+
+      '<div class="card-body"><div class="card-name">'+escapeHtml(it.name)+'</div><div class="card-price">'+fmtMoney(it.price)+' each</div>'+
+      '<div class="stepper"><button class="step-btn" onclick="decr(\''+it.id+'\')">&minus;</button>'+
+      '<input class="count-input" type="number" min="0" value="'+count+'" onchange="setCount(\''+it.id+'\', this.value)">'+
+      '<button class="step-btn" onclick="incr(\''+it.id+'\')">+</button></div></div></div>';
+  });
+  html += '</div>';
+  area.innerHTML = html;
+  updateBottomBar();
+}
+function incr(id){ state.counts[id]=(state.counts[id]||0)+1; renderGrid(); }
+function decr(id){ var c=(state.counts[id]||0)-1; state.counts[id]=c<0?0:c; renderGrid(); }
+function setCount(id,val){ var n=parseInt(val,10); if(isNaN(n)||n<0)n=0; state.counts[id]=n; renderGrid(); }
+
+function cartLines(){ return state.items.map(function(it){return {item:it,qty:state.counts[it.id]||0};}).filter(function(l){return l.qty>0;}); }
+function cartTotal(){ return cartLines().reduce(function(s,l){return s+l.qty*l.item.price;},0); }
+function cartCount(){ return cartLines().reduce(function(s,l){return s+l.qty;},0); }
+
+function updateBottomBar(){
+  var n=cartCount(), total=cartTotal();
+  var bar=document.getElementById("bottomBar");
+  document.getElementById("bbCount").innerText = n+(n===1?" item":" items");
+  document.getElementById("bbTotal").innerHTML = fmtMoney(total);
+  if(n>0) bar.classList.add("show"); else bar.classList.remove("show");
+}
+
+/* ---------------- Order screen ---------------- */
+function goToOrder(){
+  var lines = cartLines();
+  var html = "";
+  lines.forEach(function(l){
+    html += '<div class="order-row"><div><span class="nm">'+escapeHtml(l.item.name)+'</span><span class="qty">x'+l.qty+'</span></div><div class="amt">'+fmtMoney(l.qty*l.item.price)+'</div></div>';
+  });
+  document.getElementById("orderList").innerHTML = html || '<div class="hint">No items selected.</div>';
+  document.getElementById("orderTotal").innerHTML = fmtMoney(cartTotal());
+  var qrBox = document.getElementById("qrBox");
+  if(state.qrImageUrl){
+    qrBox.innerHTML = '<img src="'+state.qrImageUrl+'"><div class="qr-caption">Scan to pay '+fmtMoney(cartTotal())+'</div>';
+  } else {
+    qrBox.innerHTML = '<div class="qr-placeholder">No payment QR added yet.<br>Add one from Settings &#8594; Payment QR code.</div>';
+  }
+  openScreen("orderScreen");
+}
+function newOrder(){ state.counts={}; renderGrid(); closeScreen("orderScreen"); }
+
+/* ---------------- Screen nav ---------------- */
+function openScreen(id){ document.getElementById(id).classList.add("show"); }
+function closeScreen(id){ document.getElementById(id).classList.remove("show"); }
+function openSettings(){
+  document.getElementById("shopNameInput").value = state.shopName;
+  renderQrPreview();
+  renderItemsList();
+  openScreen("settingsScreen");
+}
+
+/* ---------------- Settings: shop name ---------------- */
+var shopNameSaveTimer = null;
+document.addEventListener("DOMContentLoaded", function(){
+  document.getElementById("shopNameInput").addEventListener("input", function(e){
+    var val = e.target.value || "Tea Stall";
+    state.shopName = val;
+    document.getElementById("shopNameDisplay").innerText = val;
+    clearTimeout(shopNameSaveTimer);
+    shopNameSaveTimer = setTimeout(function(){
+      api("/api/me", {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({shop_name: val})}).catch(function(){});
+    }, 500);
+  });
+});
+
+/* ---------------- Settings: QR upload ---------------- */
+document.getElementById("qrFile").addEventListener("change", async function(e){
+  var f = e.target.files[0]; if(!f) return;
+  var fd = new FormData(); fd.append("file", f);
+  try{
+    var me = await api("/api/me/qr", {method:"POST", body: fd});
+    state.qrImageUrl = me.qr_image_url;
+    renderQrPreview();
+  }catch(err){ alert("Couldn't upload QR: " + err.message); }
+});
+function renderQrPreview(){
+  var wrap = document.getElementById("qrPreviewWrap");
+  wrap.innerHTML = state.qrImageUrl ? ('<img src="'+state.qrImageUrl+'"><div>Tap to replace</div>') : 'Tap to upload a photo of your UPI / payment QR code';
+}
+
+/* ---------------- Settings: add item ---------------- */
+document.getElementById("itemImgFile").addEventListener("change", function(e){
+  var f = e.target.files[0]; if(!f) return;
+  state.pendingItemImageFile = f;
+  var reader = new FileReader();
+  reader.onload = function(ev){ document.getElementById("itemImgPreviewWrap").innerHTML = '<img src="'+ev.target.result+'"><div>Tap to replace</div>'; };
+  reader.readAsDataURL(f);
+});
+function toggleAddPanel(){
+  var p = document.getElementById("addItemPanel");
+  p.style.display = p.style.display==="none" ? "block" : "none";
+}
+async function addItem(){
+  var name = document.getElementById("newItemName").value.trim();
+  var category = document.getElementById("newItemCategory").value;
+  var price = parseFloat(document.getElementById("newItemPrice").value);
+  if(!name){ alert("Enter an item name."); return; }
+  if(isNaN(price) || price < 0){ alert("Enter a valid price."); return; }
+  var fd = new FormData();
+  fd.append("name", name); fd.append("category", category); fd.append("price", price);
+  if(state.pendingItemImageFile) fd.append("image", state.pendingItemImageFile);
+  try{
+    var item = await api("/api/items", {method:"POST", body: fd});
+    state.items.push({id:String(item.id), name:item.name, category:item.category, price:item.price, image:item.image_url});
+    state.pendingItemImageFile = null;
+    document.getElementById("newItemName").value = "";
+    document.getElementById("newItemPrice").value = "";
+    document.getElementById("itemImgPreviewWrap").innerHTML = "Tap to add a photo (optional)";
+    document.getElementById("addItemPanel").style.display = "none";
+    renderItemsList(); renderTabs(); renderGrid();
+  }catch(err){ alert("Couldn't save item: " + err.message); }
+}
+
+function renderItemsList(){
+  var wrap = document.getElementById("itemsList");
+  if(state.items.length===0){ wrap.innerHTML = '<div class="hint">No menu items yet. Add your first one below.</div>'; return; }
+  var html = "";
+  state.items.forEach(function(it){
+    var thumb = it.image ? '<img src="'+it.image+'">' : CATEGORY_EMOJI[it.category];
+    html += '<div class="item-row"><div class="thumb">'+thumb+'</div>'+
+      '<div class="meta"><div class="n">'+escapeHtml(it.name)+'</div><div class="p">'+CATEGORY_LABEL[it.category]+' &middot; '+fmtMoney(it.price)+'</div></div>'+
+      '<button class="del" onclick="deleteItem(\''+it.id+'\')">&times;</button></div>';
+  });
+  wrap.innerHTML = html;
+}
+async function deleteItem(id){
+  if(!confirm("Remove this item from the menu?")) return;
+  try{
+    await api("/api/items/"+id, {method:"DELETE"});
+    state.items = state.items.filter(function(it){ return it.id !== id; });
+    delete state.counts[id];
+    renderItemsList(); renderTabs(); renderGrid();
+  }catch(err){ alert("Couldn't delete item: " + err.message); }
+}
+</script>
+</body>
+</html>
