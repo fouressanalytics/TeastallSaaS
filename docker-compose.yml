@@ -1,15 +1,13 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: teastall
+      POSTGRES_USER: teatally
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: teastall
+      POSTGRES_DB: teatally
     volumes:
-      - teastall_db_data:/var/lib/postgresql/data
+      - teatally_db_data:/var/lib/postgresql/data
     networks:
       - internal
 
@@ -19,7 +17,7 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://teastall:${DB_PASSWORD}@db:5432/teastall
+      DATABASE_URL: postgresql://teatally:${DB_PASSWORD}@db:5432/teatally
       SECRET_KEY: ${SECRET_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
       SMTP_HOST: ${SMTP_HOST}
@@ -28,24 +26,24 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       FROM_EMAIL: ${FROM_EMAIL}
     volumes:
-      - teastall_uploads:/app/uploads
+      - teatally_uploads:/app/uploads
     depends_on:
       - db
     networks:
       - internal
-      - traefik   # <-- rename to match whatever external network your other odoo-* / veekay / soroor containers join
+      - traefik-proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.teastall.rule=Host(`teastall.yourdomain.com`)"   # <-- set your real subdomain
-      - "traefik.http.routers.teastall.entrypoints=websecure"
-      - "traefik.http.routers.teastall.tls.certresolver=le"                    # <-- match your existing certresolver name
-      - "traefik.http.services.teastall.loadbalancer.server.port=8000"
+      - "traefik.http.routers.teatally.rule=Host(`teatally.srv1850692.hstgr.cloud`)"
+      - "traefik.http.routers.teatally.entrypoints=websecure"
+      - "traefik.http.routers.teatally.tls.certresolver=letsencrypt"
+      - "traefik.http.services.teatally.loadbalancer.server.port=8000"
 
 networks:
   internal:
-  traefik:
-    external: true   # <-- set to your existing Traefik network name
+  traefik-proxy:
+    external: true
 
 volumes:
-  teastall_db_data:
-  teastall_uploads:
+  teatally_db_data:
+  teatally_uploads:
