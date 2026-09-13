@@ -10,6 +10,11 @@ services:
       - teatally_db_data:/var/lib/postgresql/data
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teatally"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -28,10 +33,10 @@ services:
     volumes:
       - teatally_uploads:/app/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - internal
-      - traefik-proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.teatally.rule=Host(`teatally.srv1850692.hstgr.cloud`)"
@@ -41,8 +46,6 @@ services:
 
 networks:
   internal:
-  traefik-proxy:
-    external: true
 
 volumes:
   teatally_db_data:
